@@ -13,8 +13,8 @@ export default function Home() {
   const [processes, setProcesses] = useState<Process[]>([]);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    token: 'YOUR_NEW_TOKEN',
-    channelId: 'ff2',
+    token: '',
+    channelId: 'testt',
     userId: '',
     videoFile: 'https://assets.trulience.com/assets/vba/bella/videos/idle_hairDown_fenc_hls/1080_3000_1/1080p_0.m3u8',
     fps: 30,
