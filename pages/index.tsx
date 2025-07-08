@@ -23,7 +23,7 @@ export default function Home() {
   const [stopLoading, setStopLoading] = useState<string | null>(null);
   
   const [startData, setStartData] = useState({
-    videoFile: 'https://assets.trulience.com/assets/vba/bella/videos/idle_happy_hls/1080_3000_1/1080p_0.m3u8',
+    videoFile: 'https://assets.trulience.com/assets/vba/bella/videos/idle_hairDown_fenc_hls/1080_3000_1/1080p_0.m3u8',
     channel: 'testt'
   });
   

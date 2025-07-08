@@ -73,6 +73,23 @@ struct Command {
   Command(Type t, const std::string& d) : type(t), data(d) {}
 };
 
+// Utility function to check if a string represents a valid integer
+static bool isInteger(const std::string& str) {
+  if (str.empty()) return false;
+  
+  size_t start = 0;
+  if (str[0] == '-' || str[0] == '+') {
+    start = 1;
+    if (str.length() == 1) return false; // Just a sign character
+  }
+  
+  for (size_t i = start; i < str.length(); ++i) {
+    if (!std::isdigit(str[i])) {
+      return false;
+    }
+  }
+  return true;
+}
 
 static bool isVerboseLoggingEnabled() {
   // You can control this via environment variable or command line
@@ -932,8 +949,14 @@ int main(int argc, char* argv[]) {
   // Start command processing thread
   std::thread commandThread(processStdinCommands);
 
+  // Determine if we need string UID support
+  bool useStringUid = false;
+  if (!options.userId.empty() && !isInteger(options.userId)) {
+    useStringUid = true;
+  }
+
   // Create Agora service
-  auto service = createAndInitAgoraService(false, true, true);
+  auto service = createAndInitAgoraService(false, true, true, useStringUid);
   if (!service) {
     AG_LOG(ERROR, "Failed to creating Agora service!");
     return -1;
@@ -969,9 +992,9 @@ int main(int argc, char* argv[]) {
   // Create local user observer to monitor intra frame request
   auto localUserObserver = std::make_shared<SampleLocalUserObserver>(connection->getLocalUser());
 
-  // Connect to Agora channel
-  if (connection->connect(options.appId.c_str(), options.channelId.c_str(),
-                          options.userId.c_str())) {
+  // Connect to Agora channel (using string UID)
+  const char* userIdForConnect = options.userId.empty() ? "0" : options.userId.c_str();
+  if (connection->connect(options.appId.c_str(), options.channelId.c_str(), userIdForConnect)) {
     AG_LOG(ERROR, "Failed to connect to Agora channel!");
     return -1;
   }
