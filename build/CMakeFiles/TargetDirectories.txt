@@ -1,0 +1,3 @@
+/home/ubuntu/agora-video-controller/build/CMakeFiles/agora_streaming_controlled.dir
+/home/ubuntu/agora-video-controller/build/CMakeFiles/edit_cache.dir
+/home/ubuntu/agora-video-controller/build/CMakeFiles/rebuild_cache.dir
