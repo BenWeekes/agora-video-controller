@@ -73,6 +73,35 @@ struct Command {
   Command(Type t, const std::string& d) : type(t), data(d) {}
 };
 
+
+static bool isVerboseLoggingEnabled() {
+  // You can control this via environment variable or command line
+  const char* verbose = getenv("AGORA_VERBOSE");
+  return verbose && (strcmp(verbose, "1") == 0 || strcmp(verbose, "true") == 0);
+}
+
+static void quietLogger(const char* msg) {
+  // Only log important messages, filter out verbose ones
+  std::string message(msg);
+  
+  // Skip verbose segment switching and H.264 detection messages
+  if (message.find("Switching to segment") != std::string::npos ||
+      message.find("Found H.264 stream on PID") != std::string::npos ||
+      message.find("Parsed M3U8: found") != std::string::npos ||
+      message.find("Using cached segment") != std::string::npos ||
+      message.find("Downloading:") != std::string::npos) {
+    
+    // Only show these if verbose mode is enabled
+    if (isVerboseLoggingEnabled()) {
+      std::fprintf(stderr, "[VERBOSE] %s\n", msg);
+    }
+    return;
+  }
+  
+  // Log important messages normally
+  std::fprintf(stderr, "%s\n", msg);
+}
+
 /* ====== Global Command Queue ================================= */
 class CommandQueue {
 private:
@@ -882,6 +911,8 @@ int main(int argc, char* argv[]) {
     AG_LOG(ERROR, "Must provide channelId!");
     return -1;
   }
+
+  setLogger(quietLogger);
 
   printf("Starting Agora Streaming with dynamic video switching support\n");
   printf("Commands: SWITCH_VIDEO:<url> or EXIT\n");

@@ -1,287 +1,207 @@
 # Agora Video Streaming Controller
 
-A self-contained Next.js application that provides web-based control over Agora video streaming with dynamic M3U8 video switching capabilities. Everything runs within a single project directory, referencing only your existing Agora SDK installation.
+Dynamic video streaming with live switching capabilities for Agora RTC channels.
 
-## ✨ Features
-
-- **🎥 Dynamic Video Switching** - Switch between M3U8 playlists without stopping the stream
-- **⚡ Real-time Control** - Web interface with instant command processing
-- **📦 Self-Contained** - No modifications to existing Agora SDK projects
-- **🔄 Seamless Transitions** - Background preloading for smooth video switches  
-- **🌐 Web Interface** - User-friendly control panel
-- **🔌 REST API** - Full programmatic control
-- **💾 Smart Caching** - Automatic M3U8 segment caching
-
-## 🏗️ Architecture
-
-```
-┌─────────────────┐    HTTP API    ┌─────────────────┐    stdin    ┌─────────────────┐
-│   Web Browser   │ ◄────────────► │   Next.js API   │ ◄─────────► │  C++ Streaming  │
-│                 │                │   (Node.js)     │             │   Application   │
-└─────────────────┘                └─────────────────┘             └─────────────────┘
-                                           │                               │
-                                           │                               │
-                                    ┌─────────────────┐             ┌─────────────────┐
-                                    │ Process Manager │             │   Agora SDK     │
-                                    │                 │             │                 │
-                                    └─────────────────┘             └─────────────────┘
-```
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- **Node.js 18+** and npm
-- **CMake 3.10+** and build tools
-- **Existing Agora SDK** at `/home/ubuntu/agora_rtc_sdk/agora_sdk`
-- **curl** for M3U8 downloads
-
-### One-Command Setup
+## 🖥️ Ubuntu 24.04 System Setup
 
 ```bash
-# Create project and install everything
-mkdir agora-video-controller && cd agora-video-controller
+# Update system
+sudo apt update && sudo apt upgrade -y
 
-# Copy all provided files, then:
-npm run setup
+# Install essential build tools
+sudo apt install -y \
+  build-essential \
+  cmake \
+  make \
+  git \
+  curl
+
+# Install FFmpeg with H.264 support
+sudo apt install -y \
+  ffmpeg \
+  libx264-dev
+
+# Install Node.js (latest LTS)
+curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# Verify installation
+cmake --version
+gcc --version
+node --version
+ffmpeg -version
 ```
 
-### Manual Setup
+## 📋 Prerequisites
+
+- Ubuntu/Linux system
+- Node.js 18+ and npm
+- CMake and build tools
+- Agora RTC SDK installed at `/home/ubuntu/agora_rtc_sdk/agora_sdk`
+- Valid Agora App Token
+
+## 🚀 Installation & Setup
 
 ```bash
-# 1. Create directory and install dependencies
-mkdir agora-video-controller && cd agora-video-controller
-npm init -y
-npm install next@14.0.0 react@^18 react-dom@^18 typescript@^5 @types/node@^20 @types/react@^18 @types/react-dom@^18
+# 1. Clone and enter directory
+cd agora-video-controller
 
-# 2. Copy all provided files to the project directory
+# 2. Install dependencies
+npm install
 
-# 3. Build the C++ application
-chmod +x build.sh validate-setup.sh
+# 3. Set environment variable
+echo "AGORA_APP_TOKEN=your_agora_token_here" > .env.local
+
+# 4. Build C++ streaming application
 ./build.sh
 
-# 4. Validate setup
-./validate-setup.sh
-
-# 5. Start the development server
+# 5. Start the web interface
 npm run dev
 ```
 
-## 📋 File Checklist
+**Access the web interface:** `http://localhost:3000`
 
-Ensure you have all these files in your `agora-video-controller` directory:
+## 🎮 Web Interface
 
-### Core Application
-- ✅ `agora_streaming_controlled.cpp` - Self-contained C++ streaming app
-- ✅ `CMakeLists.txt` - Build configuration
-- ✅ `build.sh` - Build script
+The web interface provides:
+- **Start Stream**: Launch new video streams to Agora channels
+- **Switch Video**: Dynamically change video source during streaming
+- **Monitor Streams**: View active streams and their status
+- **Stop Streams**: Gracefully terminate streaming processes
 
-### Next.js Application  
-- ✅ `package.json` - Project configuration
-- ✅ `next.config.js` - Next.js configuration
-- ✅ `tsconfig.json` - TypeScript configuration
-- ✅ `lib/processManager.ts` - Process management
-- ✅ `pages/index.tsx` - Web interface
-- ✅ `pages/api/streaming/start.ts` - Start stream API
-- ✅ `pages/api/streaming/switch.ts` - Switch video API
-- ✅ `pages/api/streaming/stop.ts` - Stop stream API
-- ✅ `pages/api/streaming/status.ts` - Status API
+## 🔌 API Endpoints
 
-### Utilities
-- ✅ `validate-setup.sh` - Setup validation script
-- ✅ `README.md` - This file
+### Start Avatar Stream
 
-## 🎮 Usage
-
-### Web Interface
-
-1. **Start the server:**
-   ```bash
-   npm run dev
-   ```
-
-2. **Open browser:** `http://localhost:3000`
-
-3. **Start a stream:**
-   - Token: Your Agora token
-   - Channel ID: Target channel
-   - Video File: M3U8 URL or local TS file
-   - Click "Start Stream"
-
-4. **Switch videos:**
-   - Enter new M3U8 URL
-   - Click "Switch Video"
-   - Switch happens when current segment ends
-
-### API Examples
-
-**Start Stream:**
+**Using Avatar Parameters (Production):**
 ```bash
 curl -X POST http://localhost:3000/api/streaming/start \
   -H "Content-Type: application/json" \
   -d '{
-    "token": "your_token",
-    "channelId": "your_channel", 
-    "videoFile": "https://example.com/video.m3u8"
+    "avatarId": "bella",
+    "state": "idle",
+    "expression": "happy",
+    "channel": "test-channel",
+    "token": "your_agora_token",
+    "uid": "user123"
   }'
 ```
 
-**Switch Video:**
+**Using Direct Video File (Testing):**
+```bash
+curl -X POST http://localhost:3000/api/streaming/start \
+  -H "Content-Type: application/json" \
+  -d '{
+    "videoFile": "https://example.com/video.m3u8",
+    "channel": "test-channel",
+    "token": "your_agora_token",
+    "uid": "user123"
+  }'
+```
+
+### Switch Avatar
+
+**Using Avatar Parameters:**
 ```bash
 curl -X POST http://localhost:3000/api/streaming/switch \
   -H "Content-Type: application/json" \
   -d '{
-    "channelId": "your_channel",
-    "videoFile": "https://example.com/new_video.m3u8"
+    "avatarId": "bella",
+    "state": "talking",
+    "expression": "surprise",
+    "channel": "test-channel",
+    "token": "your_agora_token",
+    "uid": "user123"
   }'
 ```
 
-**Get Status:**
+**Using Direct Video File:**
 ```bash
-curl http://localhost:3000/api/streaming/status?channelId=your_channel
+curl -X POST http://localhost:3000/api/streaming/switch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "videoFile": "/path/to/new/video.m3u8",
+    "channel": "test-channel",
+    "token": "your_agora_token",
+    "uid": "user123"
+  }'
 ```
 
-### Direct C++ Control
-
+### Get Status (All Streams)
 ```bash
-# Set library path
-export LD_LIBRARY_PATH=/home/ubuntu/agora_rtc_sdk/agora_sdk
-
-# Run directly
-./build/agora_streaming_controlled \
-  --token your_token \
-  --channelId your_channel \
-  --videoFile https://example.com/video.m3u8
-
-# Send commands via stdin:
-# SWITCH_VIDEO:https://example.com/new_video.m3u8
-# EXIT
+curl http://localhost:3000/api/streaming/status
 ```
 
-## 🛠️ Available Scripts
-
+### Get Specific Stream Status
 ```bash
-npm run dev              # Start development server
-npm run build           # Build Next.js for production
-npm run start           # Start production server
-npm run build-cpp       # Build C++ application
-npm run build-cpp-debug # Build C++ in debug mode
-npm run validate        # Validate setup
-npm run setup           # Complete setup (install + build + validate)
-npm run clean           # Clean all build artifacts
+curl -X POST http://localhost:3000/api/streaming/status \
+  -H "Content-Type: application/json" \
+  -d '{"channel": "test-channel"}'
 ```
 
-## 🔧 Configuration
-
-### Agora SDK Path
-
-Update the library path in these files if your SDK is elsewhere:
-
-**CMakeLists.txt:**
-```cmake
-set(AGORA_SDK_PATH "/your/agora/sdk/path")
-```
-
-**build.sh:**
+### Stop Stream
 ```bash
-AGORA_SDK_PATH="/your/agora/sdk/path"
+curl -X POST http://localhost:3000/api/streaming/stop \
+  -H "Content-Type: application/json" \
+  -d '{
+    "channel": "test-channel",
+    "token": "your_agora_token",
+    "uid": "user123"
+  }'
 ```
 
-**validate-setup.sh:**
+## 📁 Avatar Video Structure
+
+**Auto-Generated URLs** (when using avatarId/state/expression):
+```
+https://assets.trulience.com/assets/vba/{avatarId}/videos/{state}_{expression}_hls/1080_3000_1/1080p_0.m3u8
+```
+
+**Valid States:** `idle`, `listening`, `talking`
+**Valid Expressions:** `happy`, `sad`, `angry`, `surprise`, `fear`
+
+**Example:**
+- `avatarId`: "bella"
+- `state`: "idle" 
+- `expression`: "happy"
+- **Generated URL**: `https://assets.trulience.com/assets/vba/bella/videos/idle_happy_hls/1080_3000_1/1080p_0.m3u8`
+
+**Direct Video Files** (for testing):
+- Any M3U8 playlist URL
+- Local file paths
+- Custom video sources
+
+## 🛠️ Troubleshooting
+
+**Build issues:**
 ```bash
-AGORA_SDK_PATH="/your/agora/sdk/path"
+# Check dependencies
+cmake --version
+make --version
+
+# Rebuild
+./build.sh -d  # Debug mode
 ```
 
-### Cache Directory
-
-Default: `/home/ubuntu/tscache`
-
-Update in `agora_streaming_controlled.cpp`:
-```cpp
-#define CACHE_BASE_PATH "/your/cache/path"
-```
-
-## 🐛 Troubleshooting
-
-### Validation Issues
-
+**Runtime issues:**
 ```bash
-# Run the validation script
-./validate-setup.sh
+# Check environment
+echo $AGORA_APP_TOKEN
+export LD_LIBRARY_PATH="/home/ubuntu/agora_rtc_sdk/agora_sdk"
+
+# Test executable
+./build/agora_streaming_controlled --help
 ```
 
-### Build Issues
-
+**Port conflicts:**
 ```bash
-# Clean and rebuild
-npm run clean
-npm run setup
+# Use different port
+npm run dev -- -p 3001
 ```
 
-### Common Problems
+## 📝 Notes
 
-1. **"Library not found"**
-   ```bash
-   export LD_LIBRARY_PATH=/home/ubuntu/agora_rtc_sdk/agora_sdk
-   ```
-
-2. **"Permission denied"**
-   ```bash
-   chmod +x build.sh validate-setup.sh
-   ```
-
-3. **"Process fails to start"**
-   - Check Agora SDK path in CMakeLists.txt
-   - Verify token and credentials
-   - Check network connectivity
-
-4. **"No video switching"**
-   - Ensure M3U8 URLs are accessible
-   - Check cache directory permissions
-   - Verify curl is installed
-
-### Debug Mode
-
-```bash
-# Build in debug mode
-npm run build-cpp-debug
-
-# Check logs in web interface or console
-```
-
-## 📚 How It Works
-
-### Video Switching Process
-
-1. **Command Received** → API receives switch request
-2. **Background Download** → New M3U8 and segments cached
-3. **Preload Ready** → New playlist prepared for switching
-4. **Segment End** → Current segment finishes naturally
-5. **Instant Switch** → Immediately start new playlist
-6. **Seamless Stream** → No interruption to viewers
-
-### Process Management
-
-- Each stream runs in isolated C++ process
-- Process manager handles lifecycle and communication
-- Commands sent via stdin, responses via stdout/stderr
-- Automatic cleanup on shutdown
-
-## 🔒 Security Notes
-
-- **Development setup** - Add authentication for production
-- **Input validation** - Validate all URLs and parameters
-- **Process isolation** - Consider containerization for production
-- **Network security** - Use HTTPS and secure tokens
-
-## 📄 License
-
-MIT License - Feel free to use and modify as needed.
-
-## 🤝 Support
-
-For issues:
-1. Run `./validate-setup.sh` to check configuration
-2. Check logs in web interface console
-3. Test C++ application directly
-4. Verify Agora SDK installation and credentials
+- Token authentication is handled server-side for security
+- Streams automatically loop when reaching end of content
+- Video switching happens at segment boundaries for smooth transitions
+- Process registry survives Next.js hot reloads during development

@@ -7,24 +7,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { channelId, userId, videoFile, fps, localIP }: StartProcessParams = req.body;
+    const { avatarId, state, expression, videoFile, channel, token, uid }: StartProcessParams = req.body;
 
-    // Validate required parameters (token is now handled internally)
-    if (!channelId || !videoFile) {
-      return res.status(400).json({ 
-        error: 'Missing required parameters: channelId and videoFile are required' 
+    // Get token from environment if not provided or is placeholder
+    const actualToken = (token === 'from_env' || !token) ? process.env.AGORA_APP_TOKEN : token;
+    const actualUid = uid || 'user123';
+
+    if (!actualToken) {
+      return res.status(500).json({ 
+        error: 'AGORA_APP_TOKEN not configured in environment' 
       });
     }
 
-    // Check if the environment variable is set
-    if (!process.env.AGORA_APP_TOKEN) {
-      return res.status(500).json({ 
-        error: 'Server configuration error: AGORA_APP_TOKEN not configured' 
+    // Validate required parameters
+    if (!channel) {
+      return res.status(400).json({ 
+        error: 'Missing required parameter: channel' 
+      });
+    }
+
+    // Validate that either videoFile OR complete avatar parameters are provided
+    const hasAvatarParams = avatarId && state && expression;
+    const hasVideoFile = videoFile;
+    
+    if (!hasAvatarParams && !hasVideoFile) {
+      return res.status(400).json({ 
+        error: 'Either videoFile OR complete avatarId/state/expression parameters must be provided' 
       });
     }
 
     // Check if there's already a process running for this channel
-    const existingProcess = processManager.getProcessByChannelId(channelId);
+    const existingProcess = processManager.getProcessByChannel(channel);
     if (existingProcess && existingProcess.status === 'running') {
       return res.status(409).json({ 
         error: 'A process is already running for this channel',
@@ -34,17 +47,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Start the streaming process
     const processId = await processManager.startProcess({
-      channelId,
-      userId,
+      avatarId,
+      state,
+      expression,
       videoFile,
-      fps,
-      localIP
+      channel,
+      token: actualToken,
+      uid: actualUid
     });
 
     res.status(200).json({
       success: true,
       processId,
-      message: 'Streaming process started successfully'
+      message: 'Streaming process started successfully',
+      channel,
+      ...(hasAvatarParams ? { avatarId, state, expression } : { videoFile })
     });
 
   } catch (error) {

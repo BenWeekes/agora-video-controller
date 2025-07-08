@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { processManager } from '../../../lib/processManager';
+import { processManager, StopProcessParams } from '../../../lib/processManager';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -7,40 +7,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { processId, channelId } = req.body;
+    const { channel, token, uid }: StopProcessParams = req.body;
 
-    // Validate required parameters
-    if (!processId && !channelId) {
-      return res.status(400).json({ 
-        error: 'Either processId or channelId is required' 
+    // Get token from environment if not provided or is placeholder
+    const actualToken = (token === 'from_env' || !token) ? process.env.AGORA_APP_TOKEN : token;
+    const actualUid = uid || 'user123';
+
+    if (!actualToken) {
+      return res.status(500).json({ 
+        error: 'AGORA_APP_TOKEN not configured in environment' 
       });
     }
 
-    let targetProcessId = processId;
-
-    // If channelId is provided instead of processId, find the process
-    if (!targetProcessId && channelId) {
-      const process = processManager.getProcessByChannelId(channelId);
-      if (!process) {
-        return res.status(404).json({ 
-          error: `No process found for channel: ${channelId}` 
-        });
-      }
-      targetProcessId = process.id;
+    // Validate required parameters
+    if (!channel) {
+      return res.status(400).json({ 
+        error: 'Missing required parameter: channel' 
+      });
     }
 
     // Attempt to stop the process
-    const success = await processManager.stopProcess(targetProcessId);
+    const success = await processManager.stopProcess({
+      channel,
+      token: actualToken,
+      uid: actualUid
+    });
 
     if (success) {
       res.status(200).json({
         success: true,
-        processId: targetProcessId,
-        message: 'Process stop command sent successfully'
+        message: 'Process stop command sent successfully',
+        channel
       });
     } else {
       res.status(404).json({ 
-        error: `Process not found: ${targetProcessId}` 
+        error: `No process found for channel ${channel} with matching credentials` 
       });
     }
 

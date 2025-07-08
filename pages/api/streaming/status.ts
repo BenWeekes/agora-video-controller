@@ -7,23 +7,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       const processes = processManager.getAllProcesses();
       
-      // Convert processes to a format suitable for the frontend
-      const processData = processes.map(process => ({
-        id: process.id,
-        channelId: process.channelId,
-        currentVideoFile: process.currentVideoFile,
-        status: process.status,
-        createdAt: process.createdAt.toISOString(),
-        pid: process.process.pid || 0
-      }));
+      // Convert processes to a format suitable for the frontend (with obscured tokens)
+      const processData = processes.map(process => processManager.getProcessDataForFrontend(process));
 
       res.status(200).json({
         success: true,
         processes: processData,
-        count: processData.length
+        count: processData.length,
+        timestamp: new Date().toISOString()
       });
     } catch (error) {
-      console.error('Error fetching process status:', error);
+      console.error('💥 Error fetching process status:', error);
       res.status(500).json({ 
         error: 'Failed to fetch process status',
         details: error instanceof Error ? error.message : 'Unknown error'
@@ -32,11 +26,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } else if (req.method === 'POST') {
     // Get status of a specific process
     try {
-      const { processId, channelId } = req.body;
+      const { processId, channel } = req.body;
 
-      if (!processId && !channelId) {
+      if (!processId && !channel) {
         return res.status(400).json({ 
-          error: 'Either processId or channelId is required' 
+          error: 'Either processId or channel is required' 
         });
       }
 
@@ -44,29 +38,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (processId) {
         process = processManager.getProcess(processId);
       } else {
-        process = processManager.getProcessByChannelId(channelId);
+        process = processManager.getProcessByChannel(channel);
       }
 
       if (!process) {
         return res.status(404).json({ 
-          error: `No process found${processId ? ` for processId: ${processId}` : ` for channelId: ${channelId}`}` 
+          error: `No process found${processId ? ` for processId: ${processId}` : ` for channel: ${channel}`}` 
         });
       }
 
+      const processData = processManager.getProcessDataForFrontend(process);
+
       res.status(200).json({
         success: true,
-        process: {
-          id: process.id,
-          channelId: process.channelId,
-          currentVideoFile: process.currentVideoFile,
-          status: process.status,
-          createdAt: process.createdAt.toISOString(),
-          pid: process.process.pid || 0
-        }
+        process: processData
       });
 
     } catch (error) {
-      console.error('Error fetching specific process status:', error);
+      console.error('💥 Error fetching specific process status:', error);
       res.status(500).json({ 
         error: 'Failed to fetch process status',
         details: error instanceof Error ? error.message : 'Unknown error'
