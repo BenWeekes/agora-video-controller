@@ -7,12 +7,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { token, channelId, userId, videoFile, fps, localIP }: StartProcessParams = req.body;
+    const { channelId, userId, videoFile, fps, localIP }: StartProcessParams = req.body;
 
-    // Validate required parameters
-    if (!token || !channelId || !videoFile) {
+    // Validate required parameters (token is now handled internally)
+    if (!channelId || !videoFile) {
       return res.status(400).json({ 
-        error: 'Missing required parameters: token, channelId, and videoFile are required' 
+        error: 'Missing required parameters: channelId and videoFile are required' 
+      });
+    }
+
+    // Check if the environment variable is set
+    if (!process.env.AGORA_APP_TOKEN) {
+      return res.status(500).json({ 
+        error: 'Server configuration error: AGORA_APP_TOKEN not configured' 
       });
     }
 
@@ -27,7 +34,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Start the streaming process
     const processId = await processManager.startProcess({
-      token,
       channelId,
       userId,
       videoFile,

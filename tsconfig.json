@@ -1,28 +1,41 @@
 {
   "compilerOptions": {
-    "target": "es5",
-    "lib": ["dom", "dom.iterable", "es6"],
+    /* --- core JS target & libs ------------------------------------------ */
+    "target": "es2017",                   // ← raised from ES5
+    "lib": ["dom", "dom.iterable", "es2017"],
+
+    /* --- general compiler behavior -------------------------------------- */
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
-    "esModuleInterop": true,
+    "incremental": true,
+
+    /* --- module & resolution settings ----------------------------------- */
     "module": "esnext",
     "moduleResolution": "node",
+    "esModuleInterop": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
-    "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
+
+    /* --- path aliases ---------------------------------------------------- */
     "paths": {
       "@/*": ["./*"]
-    }
+    },
+
+    /* --- Next.js plugin -------------------------------------------------- */
+    "plugins": [
+      { "name": "next" }
+    ]
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
   "exclude": ["node_modules"]
 }

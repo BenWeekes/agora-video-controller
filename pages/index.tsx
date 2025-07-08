@@ -13,7 +13,6 @@ export default function Home() {
   const [processes, setProcesses] = useState<Process[]>([]);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    token: '',
     channelId: 'testt',
     userId: '',
     videoFile: 'https://assets.trulience.com/assets/vba/bella/videos/idle_hairDown_fenc_hls/1080_3000_1/1080p_0.m3u8',
@@ -114,15 +113,14 @@ export default function Home() {
     <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
       <h1>Agora Video Streaming Controller</h1>
       
+      <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '5px' }}>
+        <p><strong>Note:</strong> The Agora token is configured server-side via environment variables for security.</p>
+      </div>
+      
       {/* Start Process Form */}
       <div style={{ marginBottom: '30px', border: '1px solid #ddd', padding: '20px' }}>
         <h2>Start New Stream</h2>
         <div style={{ display: 'grid', gap: '10px', gridTemplateColumns: 'repeat(2, 1fr)' }}>
-          <input
-            placeholder="Token"
-            value={formData.token}
-            onChange={(e) => setFormData({...formData, token: e.target.value})}
-          />
           <input
             placeholder="Channel ID"
             value={formData.channelId}
@@ -143,7 +141,6 @@ export default function Home() {
             placeholder="Local IP (optional)"
             value={formData.localIP}
             onChange={(e) => setFormData({...formData, localIP: e.target.value})}
-            style={{ gridColumn: '1 / -1' }}
           />
           <input
             placeholder="Video File (M3U8 URL or TS file)"

@@ -10,7 +10,6 @@ export interface StreamingProcess {
 }
 
 export interface StartProcessParams {
-  token: string;
   channelId: string;
   userId?: string;
   videoFile: string;
@@ -35,9 +34,15 @@ class ProcessManager {
   async startProcess(params: StartProcessParams): Promise<string> {
     const processId = `${params.channelId}_${Date.now()}`;
     
+    // Get token from environment variable
+    const token = process.env.AGORA_APP_TOKEN;
+    if (!token) {
+      throw new Error('AGORA_APP_TOKEN environment variable is not set');
+    }
+    
     // Build command line arguments
     const args = [
-      '--token', params.token,
+      '--token', token,
       '--channelId', params.channelId,
       '--videoFile', params.videoFile
     ];
