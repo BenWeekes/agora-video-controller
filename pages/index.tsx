@@ -23,7 +23,7 @@ export default function Home() {
   const [stopLoading, setStopLoading] = useState<string | null>(null);
   
   const [startData, setStartData] = useState({
-    videoFile: 'https://assets.trulience.com/assets/vba/bella/videos/idle_hairDown_fenc_hls/1080_3000_1/1080p_0.m3u8',
+    videoFile: '/home/ubuntu/tscache/vba/bella/videos/webrtc/idle_hairDown_fenc_hls/720p/index.m3u8',
     channel: 'testt'
   });
   
@@ -173,38 +173,77 @@ export default function Home() {
           padding: '24px',
           display: 'flex',
           alignItems: 'center',
-          gap: '12px'
+          justifyContent: 'space-between'
         }}>
           <div style={{
-            width: '40px',
-            height: '40px',
-            background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-            borderRadius: '8px',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            fontWeight: 'bold'
+            gap: '12px'
           }}>
-            A
-          </div>
-          <div>
-            <h1 style={{
-              fontSize: '28px',
-              fontWeight: 'bold',
+            <div style={{
+              width: '40px',
+              height: '40px',
+              background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               color: 'white',
-              margin: 0
+              fontWeight: 'bold'
             }}>
-              Agora Video Streaming Controller
-            </h1>
-            <p style={{
-              color: '#d1d5db',
-              margin: '4px 0 0 0',
-              fontSize: '14px'
-            }}>
-              Simple video streaming with live switching capabilities
-            </p>
+              A
+            </div>
+            <div>
+              <h1 style={{
+                fontSize: '28px',
+                fontWeight: 'bold',
+                color: 'white',
+                margin: 0
+              }}>
+                Agora Video Streaming Controller
+              </h1>
+              <p style={{
+                color: '#d1d5db',
+                margin: '4px 0 0 0',
+                fontSize: '14px'
+              }}>
+                Simple video streaming with live switching capabilities
+              </p>
+            </div>
           </div>
+          
+          {/* Stream Viewer Link */}
+          <a 
+            href="https://webdemo.agora.io/basicLive/index.html" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 20px',
+              background: 'linear-gradient(135deg, #10b981, #059669)',
+              color: 'white',
+              textDecoration: 'none',
+              borderRadius: '8px',
+              fontWeight: '500',
+              fontSize: '14px',
+              transition: 'all 0.2s',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              backdropFilter: 'blur(10px)'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.boxShadow = '0 8px 32px rgba(16, 185, 129, 0.3)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+          >
+            <span>👁️</span>
+            Stream Viewer
+          </a>
         </div>
       </div>
 

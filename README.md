@@ -61,6 +61,12 @@ npm run dev
 
 **Access the web interface:** `http://localhost:3000`
 
+## 🎬 WebRTC Video Conversion
+
+For optimal streaming performance, convert your videos to WebRTC-compatible HLS format using our converter tool:
+
+**See:** [`convert/README.md`](convert/README.md) for converting MP4 and existing HLS files to WebRTC-safe format.
+
 ## 🎮 Web Interface
 
 The web interface provides:

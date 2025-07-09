@@ -6,6 +6,7 @@ Converts MP4 or M3U8 files to WebRTC-compliant HLS segments
 Usage:
     python3 webrtc_converter.py input.mp4 --bitrate 400 --output /path/to/output
     python3 webrtc_converter.py playlist.m3u8 --bitrate 800 --output ./webrtc_hls
+    python3 webrtc_converter.py bella.mp4 --bitrate 1500 --width 1280 --height 720 --output /home/ubuntu/tscache/vba/bella/videos/test --segment-length 2
 """
 
 import os
@@ -17,11 +18,13 @@ import shutil
 from pathlib import Path
 
 class WebRTCConverter:
-    def __init__(self, input_file, bitrate_kbps, output_dir, segment_length=2):
+    def __init__(self, input_file, bitrate_kbps, output_dir, segment_length=2, width=None, height=None):
         self.input_file = input_file
         self.bitrate_kbps = bitrate_kbps
         self.output_dir = output_dir
         self.segment_length = segment_length
+        self.width = width
+        self.height = height
         self.temp_file = None
         
     def detect_input_type(self):
@@ -158,8 +161,17 @@ class WebRTCConverter:
         duration = video_info['duration']
         fps = video_info['fps']
         
-        print(f"Video info: {video_info['width']}x{video_info['height']}, "
+        # Determine output dimensions
+        output_width = self.width if self.width else video_info['width']
+        output_height = self.height if self.height else video_info['height']
+        
+        print(f"Input video: {video_info['width']}x{video_info['height']}, "
               f"{fps:.1f}fps, {duration:.1f}s")
+        
+        if self.width or self.height:
+            print(f"Output video: {output_width}x{output_height} (custom dimensions)")
+        else:
+            print(f"Output video: {output_width}x{output_height} (original dimensions)")
         
         # Calculate GOP size (keyframe every segment_length seconds)
         gop_size = int(fps * self.segment_length)
@@ -179,7 +191,24 @@ class WebRTCConverter:
             '-level', '3.1',               # Widely supported level
             '-preset', 'fast',             # Good speed/quality balance
             '-tune', 'zerolatency',        # Minimize latency
+        ]
+        
+        # Add scaling filter if custom dimensions are specified
+        if self.width or self.height:
+            if self.width and self.height:
+                # Both width and height specified
+                scale_filter = f'scale={self.width}:{self.height}'
+            elif self.width:
+                # Only width specified, maintain aspect ratio
+                scale_filter = f'scale={self.width}:-2'
+            else:
+                # Only height specified, maintain aspect ratio
+                scale_filter = f'scale=-2:{self.height}'
             
+            ffmpeg_cmd.extend(['-vf', scale_filter])
+        
+        # Continue with encoding settings
+        ffmpeg_cmd.extend([
             # Bitrate control (constant for smooth playback)
             '-b:v', f'{self.bitrate_kbps}k',
             '-minrate', f'{self.bitrate_kbps}k',
@@ -197,13 +226,9 @@ class WebRTCConverter:
             '-refs', '1',                  # Single reference frame
             '-coder', '0',                 # CAVLC (not CABAC)
             '-fast-pskip', '1',            # Fast skip decisions
-            '-aud',                        # Access unit delimiters
             
-            # Audio settings (if present)
-            '-c:a', 'aac',                 # WebRTC-compatible audio
-            '-b:a', '128k',                # Audio bitrate
-            '-ar', '48000',                # Sample rate
-            '-ac', '2',                    # Stereo
+            # Disable audio output
+            '-an',
             
             # HLS segmentation
             '-f', 'hls',
@@ -214,10 +239,15 @@ class WebRTCConverter:
             
             # Output M3U8
             m3u8_file
-        ]
+        ])
         
         print(f"Converting to WebRTC-compliant HLS ({self.bitrate_kbps}kbps)...")
         print("This may take a few minutes...")
+        
+        # Debug: print the full command
+        print("\nDebug - FFmpeg command:")
+        print(" ".join(ffmpeg_cmd))
+        print()
         
         try:
             result = subprocess.run(ffmpeg_cmd, 
@@ -313,7 +343,7 @@ class WebRTCConverter:
             
             print(f"\nCodec Verification (sample: {Path(sample_segment).name}):")
             for line in result.stdout.split('\n'):
-                if any(prop in line for prop in ['codec_name=', 'profile=', 'level=', 'bit_rate=']):
+                if any(prop in line for prop in ['codec_name=', 'profile=', 'level=', 'bit_rate=', 'width=', 'height=']):
                     key, value = line.split('=', 1)
                     print(f"  {key}: {value}")
                     
@@ -333,6 +363,8 @@ class WebRTCConverter:
             print(f"Output: {self.output_dir}")
             print(f"Bitrate: {self.bitrate_kbps} kbps")
             print(f"Segment length: {self.segment_length}s")
+            if self.width or self.height:
+                print(f"Custom dimensions: {self.width or 'auto'}x{self.height or 'auto'}")
             print()
             
             # Create output directory
@@ -366,8 +398,9 @@ class WebRTCConverter:
             print("✓ Keyframes every 2 seconds")
             print("✓ No B-frames (P-frames only)")
             print("✓ Single reference frame")
-            print("✓ Access unit delimiters")
-            print("✓ WebRTC-compatible audio (AAC)")
+            print("✓ Video-only output (no audio)")
+            if self.width or self.height:
+                print(f"✓ Custom resolution: {self.width or 'auto'}x{self.height or 'auto'}")
             
             return output_m3u8
             
@@ -383,6 +416,9 @@ Examples:
   python3 webrtc_converter.py video.mp4 --bitrate 400 --output ./output
   python3 webrtc_converter.py playlist.m3u8 --bitrate 800 --output /tmp/webrtc_hls
   python3 webrtc_converter.py input.mov --bitrate 600 --output ../converted --segment-length 3
+  python3 webrtc_converter.py bella.mp4 --bitrate 1500 --width 1280 --height 720 --output /home/ubuntu/tscache/vba/bella/videos/test --segment-length 2
+  python3 webrtc_converter.py video.mp4 --bitrate 800 --width 1920 --output ./output (height auto-calculated)
+  python3 webrtc_converter.py video.mp4 --bitrate 600 --height 480 --output ./output (width auto-calculated)
         """
     )
     
@@ -393,6 +429,10 @@ Examples:
                        help='Output directory (will be created if not exists)')
     parser.add_argument('--segment-length', '-s', type=int, default=2,
                        help='Segment length in seconds (default: 2)')
+    parser.add_argument('--width', '-w', type=int,
+                       help='Output width in pixels (optional, maintains aspect ratio if height not specified)')
+    parser.add_argument('--height', type=int,
+                       help='Output height in pixels (optional, maintains aspect ratio if width not specified)')
     
     args = parser.parse_args()
     
@@ -405,12 +445,22 @@ Examples:
         print("Error: Segment length must be positive") 
         return 1
     
+    if args.width and args.width <= 0:
+        print("Error: Width must be positive")
+        return 1
+        
+    if args.height and args.height <= 0:
+        print("Error: Height must be positive")
+        return 1
+    
     try:
         converter = WebRTCConverter(
             input_file=args.input,
             bitrate_kbps=args.bitrate,
             output_dir=args.output,
-            segment_length=args.segment_length
+            segment_length=args.segment_length,
+            width=args.width,
+            height=args.height
         )
         
         output_m3u8 = converter.convert()
