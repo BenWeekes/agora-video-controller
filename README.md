@@ -99,7 +99,7 @@ curl -X POST http://localhost:3000/api/streaming/start \
   }'
 ```
 
-### Switch Avatar
+### Switch Avatar Video
 
 **Using Avatar Parameters:**
 ```bash
@@ -151,11 +151,6 @@ curl -X POST http://localhost:3000/api/streaming/stop \
 ```
 
 ## 📁 Avatar Video Structure
-
-**Auto-Generated URLs** (when using avatarId/state/expression):
-```
-https://assets.trulience.com/assets/vba/{avatarId}/videos/{state}_{expression}_hls/1080_3000_1/1080p_0.m3u8
-```
 
 **Valid States:** `idle`, `listening`, `talking`
 **Valid Expressions:** `happy`, `sad`, `angry`, `surprise`, `fear`
