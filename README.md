@@ -30,6 +30,11 @@ cmake --version
 gcc --version
 node --version
 ffmpeg -version
+
+# Agora Linux SDK
+cd /home/ubuntu     
+wget https://download.agora.io/rtsasdk/release/Agora-RTC-x86_64-linux-gnu-v4.2.32-20240814_113547-328017.tgz    
+tar -xvzf Agora-RTC-x86_64-linux-gnu-v4.2.32-20240814_113547-328017.tgz    
 ```
 
 ## 📋 Prerequisites
