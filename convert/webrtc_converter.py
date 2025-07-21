@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """
-Universal WebRTC HLS Converter
-Converts MP4 or M3U8 files to WebRTC-compliant HLS segments
+Enhanced WebRTC HLS Converter with URL Support
+Converts MP4, M3U8 files (local or remote) to WebRTC-compliant HLS segments
 
 Usage:
     python3 webrtc_converter.py input.mp4 --bitrate 400 --output /path/to/output
-    python3 webrtc_converter.py playlist.m3u8 --bitrate 800 --output ./webrtc_hls
-    python3 webrtc_converter.py bella.mp4 --bitrate 1500 --width 1280 --height 720 --output /home/ubuntu/tscache/vba/bella/videos/test --segment-length 2
+    python3 webrtc_converter.py https://example.com/playlist.m3u8 --bitrate 800 --output ./webrtc_hls
 """
 
 import os
@@ -15,6 +14,9 @@ import argparse
 import subprocess
 import math
 import shutil
+import tempfile
+import urllib.request
+import urllib.parse
 from pathlib import Path
 
 class WebRTCConverter:
@@ -26,31 +28,50 @@ class WebRTCConverter:
         self.width = width
         self.height = height
         self.temp_file = None
+        self.temp_dir = None
+        self.is_url = self.is_remote_url(input_file)
+        
+    def is_remote_url(self, path):
+        """Check if the input is a remote URL"""
+        return path.startswith(('http://', 'https://'))
         
     def detect_input_type(self):
         """Detect if input is MP4, M3U8, or other format"""
-        if not os.path.exists(self.input_file):
-            raise FileNotFoundError(f"Input file not found: {self.input_file}")
+        if self.is_url:
+            # For URLs, determine type from extension or content
+            parsed_url = urllib.parse.urlparse(self.input_file)
+            ext = Path(parsed_url.path).suffix.lower()
             
-        ext = Path(self.input_file).suffix.lower()
-        
-        if ext == '.m3u8':
-            return 'hls'
-        elif ext in ['.mp4', '.mov', '.avi', '.mkv', '.ts']:
-            return 'video'
-        else:
-            # Try to detect by content
-            try:
-                result = subprocess.run([
-                    'ffprobe', '-v', 'quiet', '-show_format', self.input_file
-                ], capture_output=True, text=True, check=True)
-                
-                if 'format_name=hls' in result.stdout or 'format_name=mpegts' in result.stdout:
+            if ext == '.m3u8':
+                return 'hls'
+            elif ext in ['.mp4', '.mov', '.avi', '.mkv', '.ts']:
+                return 'video'
+            else:
+                # Try to fetch headers to determine content type
+                try:
+                    req = urllib.request.Request(self.input_file, method='HEAD')
+                    with urllib.request.urlopen(req) as response:
+                        content_type = response.headers.get('content-type', '').lower()
+                        if 'mpegurl' in content_type or 'x-mpegurl' in content_type:
+                            return 'hls'
+                        else:
+                            return 'video'
+                except:
+                    # Default to video if we can't determine
                     return 'video'
-                else:
-                    return 'video'  # Default to video
-            except:
-                raise ValueError(f"Cannot determine file type: {self.input_file}")
+        else:
+            # Local file processing (existing logic)
+            if not os.path.exists(self.input_file):
+                raise FileNotFoundError(f"Input file not found: {self.input_file}")
+                
+            ext = Path(self.input_file).suffix.lower()
+            
+            if ext == '.m3u8':
+                return 'hls'
+            elif ext in ['.mp4', '.mov', '.avi', '.mkv', '.ts']:
+                return 'video'
+            else:
+                return 'video'  # Default to video
     
     def create_output_directory(self):
         """Create output directory if it doesn't exist"""
@@ -87,9 +108,9 @@ class WebRTCConverter:
                     fps_str = line.split('=')[1]
                     if '/' in fps_str:
                         num, den = fps_str.split('/')
-                        fps = float(num) / float(den)
+                        fps = float(num) / float(den) if float(den) != 0 else 30.0
                     else:
-                        fps = float(fps_str)
+                        fps = float(fps_str) if fps_str else 30.0
             
             return {
                 'duration': duration,
@@ -101,30 +122,96 @@ class WebRTCConverter:
             print(f"Warning: Could not get video info: {e}")
             return {'duration': None, 'width': None, 'height': None, 'fps': 30.0}
     
-    def parse_m3u8_segments(self):
+    def download_m3u8_and_segments(self):
+        """Download M3U8 and all its segments to temporary directory"""
+        self.temp_dir = tempfile.mkdtemp(prefix='webrtc_converter_')
+        
+        try:
+            # Download M3U8 playlist
+            print("Downloading M3U8 playlist...")
+            m3u8_path = os.path.join(self.temp_dir, 'playlist.m3u8')
+            
+            with urllib.request.urlopen(self.input_file) as response:
+                m3u8_content = response.read().decode('utf-8')
+            
+            with open(m3u8_path, 'w') as f:
+                f.write(m3u8_content)
+            
+            # Parse segments and download them
+            base_url = '/'.join(self.input_file.split('/')[:-1]) + '/'
+            segments = []
+            local_segments = []
+            
+            for line in m3u8_content.split('\n'):
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    if line.startswith('http'):
+                        segment_url = line
+                    else:
+                        segment_url = urllib.parse.urljoin(base_url, line)
+                    
+                    segments.append(segment_url)
+                    local_segment_path = os.path.join(self.temp_dir, f'segment_{len(local_segments):03d}.ts')
+                    local_segments.append(local_segment_path)
+            
+            print(f"Found {len(segments)} segments to download...")
+            
+            # Download segments
+            for i, (segment_url, local_path) in enumerate(zip(segments, local_segments)):
+                print(f"Downloading segment {i+1}/{len(segments)}...", end='\r')
+                try:
+                    with urllib.request.urlopen(segment_url) as response:
+                        with open(local_path, 'wb') as f:
+                            f.write(response.read())
+                except Exception as e:
+                    print(f"\nWarning: Failed to download segment {i+1}: {e}")
+            
+            print(f"\n✓ Downloaded {len(local_segments)} segments")
+            
+            # Update M3U8 to reference local segments
+            updated_m3u8_content = ""
+            segment_index = 0
+            
+            for line in m3u8_content.split('\n'):
+                if line.strip() and not line.startswith('#'):
+                    updated_m3u8_content += f"segment_{segment_index:03d}.ts\n"
+                    segment_index += 1
+                else:
+                    updated_m3u8_content += line + "\n"
+            
+            with open(m3u8_path, 'w') as f:
+                f.write(updated_m3u8_content)
+            
+            return m3u8_path
+            
+        except Exception as e:
+            raise RuntimeError(f"Failed to download M3U8 and segments: {e}")
+    
+    def parse_m3u8_segments(self, m3u8_file):
         """Parse M3U8 file and get segment list"""
         segments = []
-        base_dir = Path(self.input_file).parent
+        base_dir = Path(m3u8_file).parent
         
-        with open(self.input_file, 'r') as f:
+        with open(m3u8_file, 'r') as f:
             for line in f:
                 line = line.strip()
                 if line and not line.startswith('#'):
-                    # Handle relative paths
-                    if not line.startswith('/') and not line.startswith('http'):
-                        segment_path = base_dir / line
-                    else:
-                        segment_path = Path(line)
+                    segment_path = base_dir / line
                     segments.append(str(segment_path))
         
         return segments
     
     def concatenate_hls_segments(self, segments):
         """Concatenate HLS segments into single file"""
-        self.temp_file = os.path.join(self.output_dir, 'temp_concatenated.ts')
+        if self.temp_dir:
+            temp_file = os.path.join(self.temp_dir, 'concatenated.ts')
+        else:
+            temp_file = os.path.join(self.output_dir, 'temp_concatenated.ts')
+        
+        self.temp_file = temp_file
         
         # Create concat file
-        concat_file = os.path.join(self.output_dir, 'temp_concat_list.txt')
+        concat_file = os.path.join(os.path.dirname(temp_file), 'concat_list.txt')
         with open(concat_file, 'w') as f:
             for segment in segments:
                 if os.path.exists(segment):
@@ -138,7 +225,7 @@ class WebRTCConverter:
             '-f', 'concat', '-safe', '0',
             '-i', concat_file,
             '-c', 'copy',
-            self.temp_file
+            temp_file
         ]
         
         print("Concatenating HLS segments...")
@@ -151,7 +238,7 @@ class WebRTCConverter:
             if os.path.exists(concat_file):
                 os.remove(concat_file)
         
-        return self.temp_file
+        return temp_file
     
     def convert_to_webrtc_hls(self, input_video):
         """Convert video to WebRTC-compliant HLS"""
@@ -166,7 +253,7 @@ class WebRTCConverter:
         output_height = self.height if self.height else video_info['height']
         
         print(f"Input video: {video_info['width']}x{video_info['height']}, "
-              f"{fps:.1f}fps, {duration:.1f}s")
+              f"{fps:.1f}fps, {duration:.1f}s" if duration else "unknown duration")
         
         if self.width or self.height:
             print(f"Output video: {output_width}x{output_height} (custom dimensions)")
@@ -243,11 +330,6 @@ class WebRTCConverter:
         
         print(f"Converting to WebRTC-compliant HLS ({self.bitrate_kbps}kbps)...")
         print("This may take a few minutes...")
-        
-        # Debug: print the full command
-        print("\nDebug - FFmpeg command:")
-        print(" ".join(ffmpeg_cmd))
-        print()
         
         try:
             result = subprocess.run(ffmpeg_cmd, 
@@ -354,17 +436,23 @@ class WebRTCConverter:
         """Clean up temporary files"""
         if self.temp_file and os.path.exists(self.temp_file):
             os.remove(self.temp_file)
+        
+        if self.temp_dir and os.path.exists(self.temp_dir):
+            shutil.rmtree(self.temp_dir)
     
     def convert(self):
         """Main conversion function"""
         try:
-            print("=== Universal WebRTC HLS Converter ===")
+            print("=== Enhanced WebRTC HLS Converter ===")
             print(f"Input: {self.input_file}")
             print(f"Output: {self.output_dir}")
             print(f"Bitrate: {self.bitrate_kbps} kbps")
             print(f"Segment length: {self.segment_length}s")
             if self.width or self.height:
                 print(f"Custom dimensions: {self.width or 'auto'}x{self.height or 'auto'}")
+            
+            if self.is_url:
+                print("Input type: Remote URL")
             print()
             
             # Create output directory
@@ -375,12 +463,18 @@ class WebRTCConverter:
             print(f"Detected input type: {input_type}")
             
             if input_type == 'hls':
-                # Parse M3U8 and concatenate segments
-                segments = self.parse_m3u8_segments()
+                if self.is_url:
+                    # Download M3U8 and segments
+                    local_m3u8 = self.download_m3u8_and_segments()
+                    segments = self.parse_m3u8_segments(local_m3u8)
+                else:
+                    # Parse local M3U8
+                    segments = self.parse_m3u8_segments(self.input_file)
+                
                 print(f"Found {len(segments)} segments in M3U8")
                 video_file = self.concatenate_hls_segments(segments)
             else:
-                # Direct video file
+                # Direct video file (local or URL)
                 video_file = self.input_file
             
             # Convert to WebRTC-compliant HLS
@@ -409,20 +503,24 @@ class WebRTCConverter:
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Convert MP4 or M3U8 to WebRTC-compliant HLS',
+        description='Convert MP4 or M3U8 (local or remote) to WebRTC-compliant HLS',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
+  # Local files
   python3 webrtc_converter.py video.mp4 --bitrate 400 --output ./output
   python3 webrtc_converter.py playlist.m3u8 --bitrate 800 --output /tmp/webrtc_hls
-  python3 webrtc_converter.py input.mov --bitrate 600 --output ../converted --segment-length 3
-  python3 webrtc_converter.py bella.mp4 --bitrate 1500 --width 1280 --height 720 --output /home/ubuntu/tscache/vba/bella/videos/test --segment-length 2
-  python3 webrtc_converter.py video.mp4 --bitrate 800 --width 1920 --output ./output (height auto-calculated)
-  python3 webrtc_converter.py video.mp4 --bitrate 600 --height 480 --output ./output (width auto-calculated)
+  
+  # Remote URLs
+  python3 webrtc_converter.py https://example.com/video.mp4 --bitrate 600 --output ./output
+  python3 webrtc_converter.py https://example.com/playlist.m3u8 --bitrate 800 --output ./output
+  
+  # With custom dimensions
+  python3 webrtc_converter.py video.mp4 --bitrate 800 --width 1920 --output ./output
         """
     )
     
-    parser.add_argument('input', help='Input MP4 or M3U8 file')
+    parser.add_argument('input', help='Input MP4 or M3U8 file (local path or URL)')
     parser.add_argument('--bitrate', '-b', type=int, required=True,
                        help='Output bitrate in kbps (e.g., 400)')
     parser.add_argument('--output', '-o', required=True,
